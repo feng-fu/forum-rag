@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 540" role="img" aria-labelledby="title desc">
+  <title id="title">wq-forum-rag — a local evidence layer for WorldQuant BRAIN research</title>
+  <desc id="desc">An editorial research card showing wq-forum-rag as a local workflow: curated BRAIN documents and a user's forum export become a SQLite and FTS5 evidence layer for CLI and MCP clients.</desc>
+
+  <!-- Warm archival-paper background -->
+  <rect width="1200" height="540" rx="30" fill="#f6f0e5"/>
+  <rect x="1" y="1" width="1198" height="538" rx="29" fill="none" stroke="#d8cbb8" stroke-width="2"/>
+  <path d="M58 92H688M58 457H688" stroke="#d6c6b1" stroke-width="2"/>
+  <path d="M58 108V441" stroke="#ef5b4a" stroke-width="8" stroke-linecap="round"/>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <!-- Editorial title block -->
+    <text x="88" y="114" fill="#4255c8" font-size="20" font-weight="750" letter-spacing="2.7">OFFLINE WORLDQUANT RESEARCH</text>
+    <text x="88" y="208" fill="#16222d" font-size="73" font-weight="760" letter-spacing="-2.8">wq-forum-rag</text>
+    <text x="88" y="272" fill="#35424c" font-size="29" font-weight="500">A local evidence layer for BRAIN documentation,</text>
+    <text x="88" y="312" fill="#35424c" font-size="29" font-weight="500">forum exports, and AI research workflows.</text>
+
+    <g transform="translate(88 354)">
+      <rect width="214" height="43" rx="21.5" fill="#16222d"/>
+      <text x="20" y="29" fill="#f6f0e5" font-size="18" font-weight="700">PYTHON ≥ 3.11</text>
+      <rect x="228" width="160" height="43" rx="21.5" fill="#4255c8"/>
+      <text x="249" y="29" fill="#ffffff" font-size="18" font-weight="700">CLI + MCP</text>
+    </g>
+
+    <text x="88" y="433" fill="#69747c" font-size="20" font-weight="600">74 curated Markdown documents are included.</text>
+
+    <!-- Right-side evidence dossier -->
+    <rect x="734" y="52" width="408" height="436" rx="24" fill="#4255c8"/>
+    <path d="M766 116H1110M766 250H1110M766 384H1110" stroke="#7181df" stroke-width="2"/>
+    <text x="766" y="92" fill="#f6f0e5" font-size="18" font-weight="750" letter-spacing="2.4">EVIDENCE DOSSIER</text>
+
+    <!-- Source 01 -->
+    <text x="766" y="155" fill="#ffab9e" font-size="17" font-weight="750" letter-spacing="1.8">01 / DOCUMENTS</text>
+    <text x="766" y="196" fill="#ffffff" font-size="29" font-weight="720">Official BRAIN guides</text>
+    <text x="766" y="224" fill="#dce2ff" font-size="20">74 tracked Markdown files</text>
+
+    <!-- Source 02 -->
+    <text x="766" y="289" fill="#ffab9e" font-size="17" font-weight="750" letter-spacing="1.8">02 / FORUM EXPORT</text>
+    <text x="766" y="330" fill="#ffffff" font-size="29" font-weight="720">Your JSON archive</text>
+    <text x="766" y="358" fill="#dce2ff" font-size="20">Indexed locally, under your control</text>
+
+    <!-- Result -->
+    <text x="766" y="423" fill="#ffab9e" font-size="17" font-weight="750" letter-spacing="1.8">03 / EVIDENCE LAYER</text>
+    <text x="766" y="458" fill="#ffffff" font-size="24" font-weight="720">SQLite · FTS5 · CLI · MCP</text>
+  </g>
+</svg>

@@ -1,190 +1,158 @@
 # wq-forum-rag
 
-`wq-forum-rag` 用于把 `WQPCommunityState_20260428_133740.json` 这类论坛导出文件做成本地离线、轻量、可增量更新的检索层，并同时暴露 CLI 和 MCP 工具。
+<p align="center">
+  <img src="./assets/readme/hero.svg" width="100%" alt="wq-forum-rag：将 WorldQuant BRAIN 官方文档与个人论坛导出本地索引到 SQLite，并通过 CLI 和 MCP 提供可追溯检索与知识沉淀。">
+</p>
 
-如果你希望直接让 AI Agent 使用本项目，而不是自己阅读全部细节，请把 [`README_AGENT.md`](README_AGENT.md) 作为 Agent 的首要操作手册。
+<p align="center">
+  <strong>面向 WorldQuant BRAIN 研究的本地检索与证据知识层。</strong><br>
+  把官方 Markdown 文档、你的论坛导出和可复用知识页放入同一份 SQLite；通过 CLI 或 MCP 让 Agent 先找到证据，再组织答案。
+</p>
 
-当前版本刻意保持轻依赖：
+<p align="center">
+  <code>Python 3.11+</code> · <code>SQLite / FTS5</code> · <code>CLI + MCP</code> · 可选 <code>fastembed</code>
+</p>
 
-- 解析：`beautifulsoup4`
-- CLI：`typer` + `rich`
-- MCP：`mcp`
-- 可选本地向量能力：`fastembed`（extra `local-embeddings`）
+> **给 AI Agent 的入口：** 若希望 Claude Code、Codex、Gemini CLI 等直接操作本项目，请优先提供 [`README_AGENT.md`](README_AGENT.md)。
 
-## 分享给别人时需要什么
+## 为什么使用它？
 
-仓库内有 **3 类数据**，分发方式不同：
+- **离线、轻量、可增量更新。** 不依赖外部检索服务；索引、全文检索、精确查找和 embedding cache 都落在本地 SQLite。
+- **两类来源各自独立。** 仓库自带的 BRAIN 官方文档与用户自己的论坛 JSON 共享存储文件，但在表、FTS 类型与 MCP 查询入口上彼此隔离，避免混淆来源。
+- **让检索结果可以沉淀。** Agent 可把有论坛原帖支撑的稳定结论保存成知识页，建立来源绑定、关系图与可导出的 Markdown Wiki，而不是每次从 chunk 临时拼接答案。
 
-| 数据 | 体积 | 来源 | 是否在 repo 里 | 别人怎么拿到 |
-| --- | --- | --- | --- | --- |
-| 代码 / 测试 / `pyproject.toml` | 小 | 本仓库 | ✅ git | `git clone` |
-| **`Documents/` 官方文档(74 篇 .md)** | 468KB | 自己整理 | ✅ git | `git clone` 后跑 `ingest-docs` |
-| 论坛 SQLite (`.cache/forum.sqlite3`, ~438MB) | 大 | WQ 平台导出的 JSON 解析而来 | ❌ `.gitignore` | 由用户自己用自己的 WQ 帐号导 JSON 再 `refresh` |
+## 从零开始：得到第一个结果
 
-因此最小交付物 = **本仓库源码 + 用户自己的论坛 JSON**。`Documents/` 部分对所有 clone 用户都是开箱即用，不需要外部依赖。
-
-如果你愿意把已经构建好的 SQLite 私下分享(注意 WQ ToS 风险)，对方可以跳过"离线索引"步骤，只需要把 MCP 配置里的 `WQ_FORUM_RAG_DB` 指到该文件。
-
-## 快速开始(全新安装)
+### 1. 安装并建立官方文档索引
 
 ```bash
 git clone <repo-url>
 cd wq-forum-rag
 uv sync
-uv run wq-forum-rag --help
-```
 
-项目要求 Python `>=3.11`。如果本机没有合适版本，可以先执行：
+# 项目要求 Python >= 3.11；没有合适版本时先执行：
+# uv python install 3.11
 
-```bash
-uv python install 3.11
-uv sync
-```
-
-如需后续接本地 embedding：
-
-```bash
-uv sync --extra local-embeddings
-```
-
-**入库官方文档**(必跑，否则 `search_docs` 返回空)：
-
-```bash
+# 必跑：将仓库内 74 篇官方 Markdown 文档写入默认 SQLite 索引
 uv run wq-forum-rag ingest-docs Documents
 ```
 
-如果你还有自己的论坛 JSON，再入论坛：
+### 2. 搜索一条官方文档
+
+```bash
+uv run wq-forum-rag search-docs "neutralization" --top-k 3
+```
+
+本仓库的本地索引中，这个查询会命中 `Risk Neutralization Default setting`、`Double Neutralization` 和 `Neutralization` 等文档。也可以查看完整内容：
+
+```bash
+uv run wq-forum-rag show-doc neutralization
+```
+
+### 3. （可选）接入你自己的论坛导出
 
 ```bash
 uv run wq-forum-rag refresh /path/to/WQPCommunityState_YYYYMMDD_HHMMSS.json
 ```
 
-至此 SQLite 内同时包含官方文档与论坛帖，MCP 工具全部可用。
-
-## 升级已有安装(老用户拉新代码)
-
-老用户的 MCP 已经配过，**升级只需要 3 步**(都是幂等的，多跑无害)：
+完成后，同一 SQLite 文件中同时有官方文档和论坛帖；可使用 `search` / `show` 搜索论坛，也可供 MCP 工具使用。
 
 ```bash
-# 1. 拉新代码
-cd /path/to/wq-forum-rag
-git pull
-
-# 2. 把官方文档增量入库
-#    - 新表 documents / doc_chunks 由 CREATE TABLE IF NOT EXISTS 懒创建
-#    - 已有 forum 数据完全不动
-#    - 同名文档按 content_hash 跳过，未改动的不会重复 embed
-uv run wq-forum-rag ingest-docs Documents
-
-# 3. 重启 MCP 客户端(Claude Desktop / Claude Code / Cursor 等)
-#    - MCP server 是常驻进程，启动时加载代码，不会热重载
-#    - 重启后新工具 search_docs / get_doc / ingest_docs 才会出现在工具列表里
+uv run wq-forum-rag search "alpha decay neutralization" --top-k 5
+uv run wq-forum-rag show 12913566170391
 ```
 
-**不需要做的事**：
-
-- ❌ `uv sync` —— 没新增依赖
-- ❌ `pip install -e .` —— 已经是 editable 安装，源码改动自动生效
-- ❌ 删 / 迁移 `forum.sqlite3` —— 老表完全兼容，新表 additive
-- ❌ 重跑 `refresh` —— 论坛部分零影响
-
-**校验升级成功的方法**：
+如需更强的本地语义召回，可安装可选依赖：
 
 ```bash
-# 应看到 indexed_documents=74, doc_chunks>=228
-uv run wq-forum-rag ingest-docs Documents
-
-# 重启 MCP 客户端后，在客户端里调一次：
-#   search_docs("neutralization")  → 应返回非空命中
-#   get_doc("operators")           → 应返回完整 markdown body
+uv sync --extra local-embeddings
 ```
 
-如果新工具仍然不可见，99% 是 MCP 客户端没重启，少数情况检查 `command` / `args` 路径有没有指错 repo。
+## 数据、分发与边界
 
-## 离线索引
+| 内容 | 是否随仓库提供 | 用途与获取方式 |
+| --- | --- | --- |
+| 代码、测试、`pyproject.toml` | ✅ | `git clone` 即可获得。 |
+| [`Documents/`](Documents/) 中 74 篇 BRAIN 官方 Markdown 文档 | ✅ | `git clone` 后执行 `ingest-docs Documents`。 |
+| 论坛 SQLite（例如 `.cache/forum.sqlite3`） | ❌ | 由每位用户使用自己的 WQ 帐号导出 JSON 后，在本地运行 `refresh` / `index` 建立。 |
 
-首次建立索引：
+最小交付物是：**本仓库源码 + 用户自己的论坛 JSON**。`Documents/` 对所有 clone 用户开箱即用。
+
+如果你选择私下共享已经构建好的 SQLite，对方可以跳过论坛离线索引，只需将 `WQ_FORUM_RAG_DB` 指向该文件。请先自行评估 WorldQuant 平台条款及数据分享风险；该数据库默认不应提交到 Git。
+
+## 检索工作流
+
+```text
+官方 Documents/ ─┐
+                  ├─> SQLite tables + FTS5 candidates ─> hybrid rerank ─> CLI / MCP
+个人论坛 JSON ───┘                                                │
+                                                                   └─> 可追溯知识页与 Markdown Wiki
+```
+
+- **论坛索引：** 解析 community、topic、author、时间、投票/评论等轻量元数据，并从 HTML 清洗正文文本。
+- **增量更新：** `index` 会根据源 JSON 的路径、mtime 与 size 跳过未变更文件；替换导出或需要强制刷新时使用 `--rebuild`。`refresh` 则把论坛索引和来源 manifest 提交组合为一步。
+- **混合检索：** SQLite FTS5 先做关键词候选召回，再复用 `ForumSearcher` 做 lexical + dense rerank；可选 embedding 后端的结果会按 backend 与内容 hash 缓存。
+- **精确/近邻查询：** `find_by_exact` 面向 topic id、URL、标题、正文、评论与 chunk 的精确词命中；`related_posts` 基于标题寻找同社区相关主题。
+
+首次显式重建论坛索引：
 
 ```bash
 uv run wq-forum-rag index \
-  --json WQPCommunityState_20260428_133740.json \
+  --json /path/to/WQPCommunityState_YYYYMMDD_HHMMSS.json \
   --db .cache/forum.sqlite3 \
   --rebuild
 ```
 
-默认实现会从 JSON 中抽取：
-
-- community id / title
-- topic id / title / url
-- author / datetime
-- vote / comment 等轻量元数据
-- HTML 清洗后的正文文本
-
-索引落到 SQLite，检索阶段复用仓库内现有 `search.py` 做本地 hybrid search（lexical + dense fallback），不依赖外部服务。
-
-## 增量索引
-
-再次执行：
+后续对同一来源的增量索引：
 
 ```bash
 uv run wq-forum-rag index \
-  --json WQPCommunityState_20260428_133740.json \
+  --json /path/to/WQPCommunityState_YYYYMMDD_HHMMSS.json \
   --db .cache/forum.sqlite3
 ```
 
-如果源 JSON 的路径、mtime、size 都未变化，命令会直接跳过重建并返回 `unchanged`。当你替换导出文件或希望强制刷新时，加 `--rebuild`。
+## CLI 速查
 
-## 查询
+| 目的 | 命令 |
+| --- | --- |
+| 查看所有命令 | `uv run wq-forum-rag --help` |
+| 搜索 / 查看论坛 | `search "query"` · `show TOPIC_ID` |
+| 搜索 / 查看官方文档 | `search-docs "query"` · `show-doc SLUG` |
+| 文档入库 | `ingest-docs Documents` |
+| 重建 FTS5 索引 | `search-reindex` |
+| 查看论坛来源差异 | `source-status ./notes` · `source-ingest-plan ./notes --commit` |
+| 使用知识层 | `evolve-context`、`knowledge-search`、`knowledge-show`、`knowledge-lint`、`knowledge-graph`、`knowledge-export` |
 
-全文检索：
+所有命令均可通过 `--db .cache/forum.sqlite3` 指定索引文件；默认路径也是 `.cache/forum.sqlite3`。
 
-```bash
-uv run wq-forum-rag search "alpha decay neutralization" --db .cache/forum.sqlite3 --top-k 5
-```
+### 官方文档源
 
-查看单帖：
-
-```bash
-uv run wq-forum-rag show 12913566170391 --db .cache/forum.sqlite3
-```
-
-## 官方文档库 (Documents/)
-
-`Documents/` 目录是从 BRAIN 平台整理的 74 篇官方文档(Operators / Neutralization / 各种 Dataset 用法等)，作为论坛之外的高信任度知识源，已直接 commit 进仓库，对所有 clone 用户开箱即用。
-
-入库 / 增量更新：
+`ingest-docs` 是增量操作：相同内容按 `content_hash` 跳过，默认会 prune 数据库中目录已不存在的文档。
 
 ```bash
 uv run wq-forum-rag ingest-docs Documents
-# 选项：
+# 可选：
 #   --rebuild       强制全清重建
-#   --no-prune      保留 DB 中已不存在于目录的文档(默认 prune)
+#   --no-prune      保留 DB 中已不存在于目录的文档
 ```
 
-搜索与查看：
+文档与论坛在设计上完全隔离：
 
-```bash
-uv run wq-forum-rag search-docs "subindustry neutralization" --top-k 5
-uv run wq-forum-rag show-doc operators
-```
+- 文档表：`documents` / `doc_chunks`，FTS kind 为 `doc_chunk`
+- 论坛表：`topics` / `chunks`，FTS kind 为 `forum_chunk`
+- MCP 中 `search_docs` 只命中文档，`search_forum` 只命中论坛
+- 两者共享 SQLite 文件与 embedding cache，但不互相污染
 
-设计上文档与论坛**完全隔离**：
+## MCP：让 Agent 使用本地证据
 
-- 文档走 `documents` / `doc_chunks` 表，FTS kind = `doc_chunk`
-- 论坛走 `topics` / `chunks` 表，FTS kind = `forum_chunk`
-- MCP 端 `search_docs` 只命中文档，`search_forum` 只命中论坛
-- 两者共享同一个 SQLite 文件、同一个 embedding cache，互不污染
-
-## MCP 用法
-
-服务端默认从 `WQ_FORUM_RAG_DB` 读取索引路径，也允许每次调用工具时显式传 `db`。
+服务端默认从 `WQ_FORUM_RAG_DB` 获取索引路径，也可在每次工具调用时传入 `db`。
 
 ```bash
 export WQ_FORUM_RAG_DB=/absolute/path/.cache/forum.sqlite3
 uv run wq-forum-rag-mcp
 ```
 
-Claude Desktop / 兼容 MCP 客户端配置示例：
+Claude Desktop 或其他兼容 MCP 客户端的配置示例：
 
 ```json
 {
@@ -205,108 +173,79 @@ Claude Desktop / 兼容 MCP 客户端配置示例：
 }
 ```
 
-已暴露工具(共 19 个)：
+<details>
+<summary><strong>查看全部 19 个 MCP 工具</strong></summary>
 
-论坛检索：
+| 分组 | 工具 |
+| --- | --- |
+| 论坛检索 | `search_forum(query, db=None, top_k=5)`<br>`get_post(topic_id, db=None)`<br>`find_by_exact(value, db=None, community=None, top_k=5)`<br>`related_posts(topic_id, db=None, top_k=5)` |
+| 官方文档 | `search_docs(query, db=None, top_k=5)`<br>`get_doc(slug, db=None)`<br>`ingest_docs(directory, db=None, rebuild=False, prune=True)` |
+| 来源管理 | `source_status(source, db=None)`<br>`source_ingest_plan(source, db=None, commit=False)` |
+| 知识层 | `build_evolution_context(query, db=None, top_k=5)`<br>`propose_knowledge_page(slug, title, summary, body, source_topic_ids, confidence, db=None, links=None, auto_publish=True)`<br>`search_knowledge(query, db=None, top_k=5, include_drafts=False)`<br>`get_knowledge_page(slug, db=None)`<br>`link_knowledge_pages(source_slug, target_slug, relation_type, db=None, weight=1.0, confidence=0.8)`<br>`lint_knowledge(db=None, slug=None)`<br>`publish_knowledge_page(slug, db=None)`<br>`graph_query(slug, db=None, depth=1, relation_type=None)`<br>`export_knowledge_wiki(db=None, output_dir=".cache/wiki", include_drafts=False)` |
+| 维护 | `rebuild_search_index(db=None)` |
 
-- `search_forum(query, db=None, top_k=5)`
-- `get_post(topic_id, db=None)`
-- `find_by_exact(value, db=None, community=None, top_k=5)`
-- `related_posts(topic_id, db=None, top_k=5)`
+</details>
 
-官方文档检索：
+## 自进化知识层：从证据到可复用结论
 
-- `search_docs(query, db=None, top_k=5)`
-- `get_doc(slug, db=None)`
-- `ingest_docs(directory, db=None, rebuild=False, prune=True)`
+知识层不内置外部 LLM API：**MCP 客户端负责阅读、总结和判断；本项目负责确定性存储、来源校验、低风险自动发布、图谱连边和 lint。**
 
-来源管理：
+推荐让 Agent 按以下流程工作：
 
-- `source_status(source, db=None)`
-- `source_ingest_plan(source, db=None, commit=False)`
+1. `build_evolution_context("你的问题")`：优先返回已发布知识页，并附带完整论坛证据。
+2. Agent 阅读上下文，归纳稳定结论。
+3. `propose_knowledge_page(...)`：写入草稿，并提供支撑结论的 `source_topic_ids`。
+4. 当 `confidence >= 0.85`、来源 topic 存在、且没有 `conflicts_with` 阻塞项时，系统允许低风险自动发布；否则可经 `lint_knowledge` / `publish_knowledge_page` 处理。
+5. 后续用 `search_knowledge(...)` 查找已沉淀内容，必要时再回退到论坛检索。
 
-知识层(self-evolving)：
+知识页仍写入同一 SQLite，相关表包括：
 
-- `build_evolution_context(query, db=None, top_k=5)`
-- `propose_knowledge_page(slug, title, summary, body, source_topic_ids, confidence, db=None, links=None, auto_publish=True)`
-- `search_knowledge(query, db=None, top_k=5, include_drafts=False)`
-- `get_knowledge_page(slug, db=None)`
-- `link_knowledge_pages(source_slug, target_slug, relation_type, db=None, weight=1.0, confidence=0.8)`
-- `lint_knowledge(db=None, slug=None)`
-- `publish_knowledge_page(slug, db=None)`
-- `graph_query(slug, db=None, depth=1, relation_type=None)`
-- `export_knowledge_wiki(db=None, output_dir=".cache/wiki", include_drafts=False)`
-
-维护：
-
-- `rebuild_search_index(db=None)`
-
-## 自进化知识层
-
-当前版本在原始论坛 RAG 之上新增了一层可沉淀的知识库，目标是让 Gemini CLI、Codex 或其他 MCP 客户端把高价值查询结果整理成可复用知识，而不是每次都重新从论坛 chunk 临场拼答案。
-
-推荐流程：
-
-1. 调用 `build_evolution_context("你的问题")`，系统会返回已发布知识页和完整论坛证据。
-2. 由 Gemini CLI 阅读上下文并总结稳定结论。
-3. 调用 `propose_knowledge_page(...)` 写入知识页草稿，必须提供支撑结论的 `source_topic_ids`。
-4. 系统会按低风险规则自动发布：`confidence >= 0.85`、来源 topic 存在、没有 `conflicts_with` 阻塞项。
-5. 后续查询优先使用 `search_knowledge(...)` 命中已沉淀知识，再回落到论坛检索。
-
-知识层仍然写入同一个 SQLite 文件，新增表包括：
-
-- `knowledge_pages`：概念、规则、经验等沉淀页面
-- `knowledge_sources`：知识页到论坛原帖的来源绑定
-- `knowledge_links`：知识页之间的 typed edges / backlink
+- `knowledge_pages`：概念、规则、经验等页面
+- `knowledge_sources`：知识页与论坛原帖的来源绑定
+- `knowledge_links`：typed edges / backlink
 - `knowledge_events`：append-only 演化日志
 
-这套设计刻意不内置外部 LLM API。LLM 的阅读、总结和判断由 MCP 客户端完成；本项目只负责确定性存储、来源校验、低风险自动发布、图谱连边和 lint。
-
-当前已实现的 PDF 对齐能力：
-
-- Raw layer：论坛 JSON 解析、SQLite 原帖与 chunk 索引。
-- Wiki layer：可沉淀的知识页、来源绑定、Markdown Wiki 导出。
-- Schema / operation layer：MCP 工具约束 Gemini CLI 的 ingest、query、lint、publish 流程。
-- Progressive disclosure：优先返回已发布知识页，再返回完整论坛证据。
-- Typed graph：`knowledge_links` 记录 typed edges，支持 backlink boost 和 `graph_query` 多跳遍历。
-- Hot / log / index：`export_knowledge_wiki` 生成 `index.md`、`log.md`、`hot.md` 和页面 Markdown。
-- Delta manifest：`source_status` / `source_ingest_plan` 可扫描外部文本/Markdown 目录，记录 `sha256`、`mtime_ns`、`size`、`relative_path`，并区分 `new/modified/unchanged/deleted`；默认 dry-run，只有显式 `commit=True` 才会更新 manifest 表。
-- SQLite 混合检索增强：`search-reindex` / `rebuild_search_index` 重建 FTS5 索引，搜索时先用 FTS 候选召回，再复用原 hybrid rerank；embedding 结果按 backend 和内容 hash 持久化缓存。
-
-尚未实现或后续可继续增强：
-
-- PDF/截图/音频/视频等多模态摄入。
-- 定时任务或后台 always-on ingestion。
-- LLM 自动矛盾识别；当前只支持客户端提交 `conflicts_with` 后由系统阻止自动发布。
-- 外部向量数据库或 seekdb 类服务化基础设施；当前已实现 SQLite 本地增强版。
-
-对应 CLI 也提供了本地检查入口：
+本地检查与导出示例：
 
 ```bash
-uv run wq-forum-rag evolve-context "alpha decay neutralization" --db .cache/forum.sqlite3 --top-k 3
-uv run wq-forum-rag knowledge-search "neutralization" --db .cache/forum.sqlite3 --json
-uv run wq-forum-rag knowledge-show alpha/neutralization-decay --db .cache/forum.sqlite3
-uv run wq-forum-rag knowledge-lint --db .cache/forum.sqlite3
-uv run wq-forum-rag knowledge-graph alpha/neutralization-decay --db .cache/forum.sqlite3 --depth 2
-uv run wq-forum-rag knowledge-export --db .cache/forum.sqlite3 --out .cache/wiki
-uv run wq-forum-rag search-reindex --db .cache/forum.sqlite3
-uv run wq-forum-rag source-status ./notes --db .cache/forum.sqlite3
-uv run wq-forum-rag source-ingest-plan ./notes --db .cache/forum.sqlite3 --commit
+uv run wq-forum-rag evolve-context "alpha decay neutralization" --top-k 3
+uv run wq-forum-rag knowledge-search "neutralization" --json
+uv run wq-forum-rag knowledge-show alpha/neutralization-decay
+uv run wq-forum-rag knowledge-lint
+uv run wq-forum-rag knowledge-graph alpha/neutralization-decay --depth 2
+uv run wq-forum-rag knowledge-export --out .cache/wiki
 ```
 
-## 精度 / 性能策略
+## 维护已有安装
 
-当前策略优先“本地可跑 + 低维护成本”：
+拉取新代码后，以下步骤是幂等的：
 
-1. 默认检索使用 SQLite FTS5 做关键词候选召回，再复用现有 `ForumSearcher` 做 lexical + dense rerank；不开外部模型也能离线跑。
-2. 数据持久化仍是 SQLite，适合本地单文件分发、增量更新和精确查找。
-3. `find_by_exact` 走 `topic_id / url / title / 正文 / 评论 / chunk` 精确词命中，避免把字段名、报错、operator 等导航型问题交给语义检索。
-4. `related_posts` 复用标题检索做近邻召回，优先返回同社区相关主题。
-5. 自进化知识层采用“知识页优先 + 论坛证据回退”的渐进式披露；知识页搜索会叠加轻量 backlink boost。
-6. `embedding_cache` 会缓存文档向量，重复搜索不需要反复 embed 同一内容。
+```bash
+cd /path/to/wq-forum-rag
+git pull
+uv run wq-forum-rag ingest-docs Documents
+```
 
-如果后续要提高语义召回，可以保留当前 SQLite 作为元数据与精确查找层，再用 `.[local-embeddings]` 接入 `fastembed` 替换默认 dense backend，做更强的混合召回或 rerank。这样不会破坏现有 CLI/MCP contract。
+通常**不需要**：
 
-## 与后续 parser/storage/search 集成
+- `uv sync`：确认本次升级没有新增或变更依赖时不必执行。
+- `pip install -e .`：`uv run` 已基于当前源码运行。
+- 删除、迁移或重建既有 `forum.sqlite3`：文档相关表以 additive 方式创建，不影响已有论坛数据。
+- 重跑 `refresh`：仅升级官方文档能力时，论坛索引不受影响。
 
-当前骨架已经直接复用项目内 `parser` / `storage` / `search`。后续即使替换 embedding backend 或调优 chunk/search 策略，也不需要改 CLI/MCP 对外接口。
+然后重启 MCP 客户端（Claude Desktop、Claude Code、Cursor 等）；MCP server 是常驻进程，启动时加载代码，不会热重载。重启后可验证：
+
+```bash
+uv run wq-forum-rag ingest-docs Documents
+# 预期：indexed_documents=74，且 doc_chunks 为非零
+```
+
+再从 MCP 客户端调用 `search_docs("neutralization")` 或 `get_doc("operators")`。若新工具仍不可见，优先检查客户端是否已重启，其次检查 `command` / `args` 是否指向正确的仓库目录。
+
+## 当前范围与后续方向
+
+已实现：本地 JSON 解析、SQLite 原帖与 chunk 索引、Markdown 文档摄入、FTS5 + hybrid search、来源 manifest、知识页与来源绑定、typed graph、Wiki 导出、backlink boost 与 embedding cache。
+
+暂未实现：PDF/截图/音频/视频等多模态摄入、定时或 always-on ingestion、由 LLM 自动识别矛盾（目前由客户端通过 `conflicts_with` 提交后阻止自动发布），以及外部向量数据库或 seekdb 类服务化基础设施。
+
+对外 CLI / MCP contract 与内部 `parser`、`storage`、`search` 模块解耦；后续替换 embedding backend 或调优 chunk/search 策略，不应改变既有 CLI/MCP 接口。
