@@ -23,7 +23,7 @@ from wq_forum_rag.search_index import rebuild_search_index
 from wq_forum_rag.search_records import search_doc_records
 
 DEFAULT_DB_PATH = Path(".cache/forum.sqlite3")
-app = typer.Typer(no_args_is_help=True, help="Offline lightweight RAG for WQ forum exports")
+app = typer.Typer(no_args_is_help=True, help="Offline lightweight RAG for forum exports")
 console = Console()
 
 

@@ -1,11 +1,11 @@
-# wq-forum-rag
+# forum-rag
 
 <p align="center">
-  <img src="./assets/readme/hero.svg" width="100%" alt="wq-forum-rag：将 WorldQuant BRAIN 官方文档与个人论坛导出本地索引到 SQLite，并通过 CLI 和 MCP 提供可追溯检索与知识沉淀。">
+  <img src="./assets/readme/hero.svg" width="100%" alt="forum-rag：将研究文档与个人论坛导出本地索引到 SQLite，并通过 CLI 和 MCP 提供可追溯检索与知识沉淀。">
 </p>
 
 <p align="center">
-  <strong>面向 WorldQuant BRAIN 研究的本地检索与证据知识层。</strong><br>
+  <strong>面向量化研究的本地检索与证据知识层。</strong><br>
   把官方 Markdown 文档、你的论坛导出和可复用知识页放入同一份 SQLite；通过 CLI 或 MCP 让 Agent 先找到证据，再组织答案。
 </p>
 
@@ -18,7 +18,7 @@
 ## 为什么使用它？
 
 - **离线、轻量、可增量更新。** 不依赖外部检索服务；索引、全文检索、精确查找和 embedding cache 都落在本地 SQLite。
-- **两类来源各自独立。** 仓库自带的 BRAIN 官方文档与用户自己的论坛 JSON 共享存储文件，但在表、FTS 类型与 MCP 查询入口上彼此隔离，避免混淆来源。
+- **两类来源各自独立。** 仓库自带的官方研究文档与用户自己的论坛 JSON 共享存储文件，但在表、FTS 类型与 MCP 查询入口上彼此隔离，避免混淆来源。
 - **让检索结果可以沉淀。** Agent 可把有论坛原帖支撑的稳定结论保存成知识页，建立来源绑定、关系图与可导出的 Markdown Wiki，而不是每次从 chunk 临时拼接答案。
 
 ## 从零开始：得到第一个结果
@@ -26,40 +26,40 @@
 ### 1. 安装并建立官方文档索引
 
 ```bash
-git clone <repo-url>
-cd wq-forum-rag
+git clone https://github.com/BeastOrange/forum-rag.git
+cd forum-rag
 uv sync
 
 # 项目要求 Python >= 3.11；没有合适版本时先执行：
 # uv python install 3.11
 
 # 必跑：将仓库内 74 篇官方 Markdown 文档写入默认 SQLite 索引
-uv run wq-forum-rag ingest-docs Documents
+uv run forum-rag ingest-docs Documents
 ```
 
 ### 2. 搜索一条官方文档
 
 ```bash
-uv run wq-forum-rag search-docs "neutralization" --top-k 3
+uv run forum-rag search-docs "neutralization" --top-k 3
 ```
 
 本仓库的本地索引中，这个查询会命中 `Risk Neutralization Default setting`、`Double Neutralization` 和 `Neutralization` 等文档。也可以查看完整内容：
 
 ```bash
-uv run wq-forum-rag show-doc neutralization
+uv run forum-rag show-doc neutralization
 ```
 
 ### 3. （可选）接入你自己的论坛导出
 
 ```bash
-uv run wq-forum-rag refresh /path/to/WQPCommunityState_YYYYMMDD_HHMMSS.json
+uv run forum-rag refresh /path/to/forum-export_YYYYMMDD_HHMMSS.json
 ```
 
 完成后，同一 SQLite 文件中同时有官方文档和论坛帖；可使用 `search` / `show` 搜索论坛，也可供 MCP 工具使用。
 
 ```bash
-uv run wq-forum-rag search "alpha decay neutralization" --top-k 5
-uv run wq-forum-rag show 12913566170391
+uv run forum-rag search "alpha decay neutralization" --top-k 5
+uv run forum-rag show 12913566170391
 ```
 
 如需更强的本地语义召回，可安装可选依赖：
@@ -73,12 +73,12 @@ uv sync --extra local-embeddings
 | 内容 | 是否随仓库提供 | 用途与获取方式 |
 | --- | --- | --- |
 | 代码、测试、`pyproject.toml` | ✅ | `git clone` 即可获得。 |
-| [`Documents/`](Documents/) 中 74 篇 BRAIN 官方 Markdown 文档 | ✅ | `git clone` 后执行 `ingest-docs Documents`。 |
-| 论坛 SQLite（例如 `.cache/forum.sqlite3`） | ❌ | 由每位用户使用自己的 WQ 帐号导出 JSON 后，在本地运行 `refresh` / `index` 建立。 |
+| [`Documents/`](Documents/) 中 74 篇官方 Markdown 文档 | ✅ | `git clone` 后执行 `ingest-docs Documents`。 |
+| 论坛 SQLite（例如 `.cache/forum.sqlite3`） | ❌ | 由每位用户使用自己的平台帐号导出 JSON 后，在本地运行 `refresh` / `index` 建立。 |
 
 最小交付物是：**本仓库源码 + 用户自己的论坛 JSON**。`Documents/` 对所有 clone 用户开箱即用。
 
-如果你选择私下共享已经构建好的 SQLite，对方可以跳过论坛离线索引，只需将 `WQ_FORUM_RAG_DB` 指向该文件。请先自行评估 WorldQuant 平台条款及数据分享风险；该数据库默认不应提交到 Git。
+如果你选择私下共享已经构建好的 SQLite，对方可以跳过论坛离线索引，只需将 `FORUM_RAG_DB` 指向该文件。请先自行评估相关平台条款及数据分享风险；该数据库默认不应提交到 Git。
 
 ## 检索工作流
 
@@ -97,8 +97,8 @@ uv sync --extra local-embeddings
 首次显式重建论坛索引：
 
 ```bash
-uv run wq-forum-rag index \
-  --json /path/to/WQPCommunityState_YYYYMMDD_HHMMSS.json \
+uv run forum-rag index \
+  --json /path/to/forum-export_YYYYMMDD_HHMMSS.json \
   --db .cache/forum.sqlite3 \
   --rebuild
 ```
@@ -106,8 +106,8 @@ uv run wq-forum-rag index \
 后续对同一来源的增量索引：
 
 ```bash
-uv run wq-forum-rag index \
-  --json /path/to/WQPCommunityState_YYYYMMDD_HHMMSS.json \
+uv run forum-rag index \
+  --json /path/to/forum-export_YYYYMMDD_HHMMSS.json \
   --db .cache/forum.sqlite3
 ```
 
@@ -115,13 +115,13 @@ uv run wq-forum-rag index \
 
 | 目的 | 命令 |
 | --- | --- |
-| 查看所有命令 | `uv run wq-forum-rag --help` |
-| 搜索 / 查看论坛 | `search "query"` · `show TOPIC_ID` |
-| 搜索 / 查看官方文档 | `search-docs "query"` · `show-doc SLUG` |
-| 文档入库 | `ingest-docs Documents` |
-| 重建 FTS5 索引 | `search-reindex` |
-| 查看论坛来源差异 | `source-status ./notes` · `source-ingest-plan ./notes --commit` |
-| 使用知识层 | `evolve-context`、`knowledge-search`、`knowledge-show`、`knowledge-lint`、`knowledge-graph`、`knowledge-export` |
+| 查看所有命令 | `uv run forum-rag --help` |
+| 搜索 / 查看论坛 | `uv run forum-rag search "query"` · `uv run forum-rag show TOPIC_ID` |
+| 搜索 / 查看官方文档 | `uv run forum-rag search-docs "query"` · `uv run forum-rag show-doc SLUG` |
+| 文档入库 | `uv run forum-rag ingest-docs Documents` |
+| 重建 FTS5 索引 | `uv run forum-rag search-reindex` |
+| 查看论坛来源差异 | `uv run forum-rag source-status ./notes` · `uv run forum-rag source-ingest-plan ./notes --commit` |
+| 使用知识层 | `uv run forum-rag <command>`，其中 `<command>` 为 `evolve-context`、`knowledge-search`、`knowledge-show`、`knowledge-lint`、`knowledge-graph` 或 `knowledge-export` |
 
 所有命令均可通过 `--db .cache/forum.sqlite3` 指定索引文件；默认路径也是 `.cache/forum.sqlite3`。
 
@@ -130,7 +130,7 @@ uv run wq-forum-rag index \
 `ingest-docs` 是增量操作：相同内容按 `content_hash` 跳过，默认会 prune 数据库中目录已不存在的文档。
 
 ```bash
-uv run wq-forum-rag ingest-docs Documents
+uv run forum-rag ingest-docs Documents
 # 可选：
 #   --rebuild       强制全清重建
 #   --no-prune      保留 DB 中已不存在于目录的文档
@@ -145,11 +145,11 @@ uv run wq-forum-rag ingest-docs Documents
 
 ## MCP：让 Agent 使用本地证据
 
-服务端默认从 `WQ_FORUM_RAG_DB` 获取索引路径，也可在每次工具调用时传入 `db`。
+服务端默认从 `FORUM_RAG_DB` 获取索引路径，也可在每次工具调用时传入 `db`。
 
 ```bash
-export WQ_FORUM_RAG_DB=/absolute/path/.cache/forum.sqlite3
-uv run wq-forum-rag-mcp
+export FORUM_RAG_DB=/absolute/path/.cache/forum.sqlite3
+uv run forum-rag-mcp
 ```
 
 Claude Desktop 或其他兼容 MCP 客户端的配置示例：
@@ -157,16 +157,16 @@ Claude Desktop 或其他兼容 MCP 客户端的配置示例：
 ```json
 {
   "mcpServers": {
-    "wq-forum-rag": {
+    "forum-rag": {
       "command": "uv",
       "args": [
         "--directory",
-        "/absolute/path/wq-forum-rag",
+        "/absolute/path/forum-rag",
         "run",
-        "wq-forum-rag-mcp"
+        "forum-rag-mcp"
       ],
       "env": {
-        "WQ_FORUM_RAG_DB": "/absolute/path/.cache/forum.sqlite3"
+        "FORUM_RAG_DB": "/absolute/path/.cache/forum.sqlite3"
       }
     }
   }
@@ -208,12 +208,12 @@ Claude Desktop 或其他兼容 MCP 客户端的配置示例：
 本地检查与导出示例：
 
 ```bash
-uv run wq-forum-rag evolve-context "alpha decay neutralization" --top-k 3
-uv run wq-forum-rag knowledge-search "neutralization" --json
-uv run wq-forum-rag knowledge-show alpha/neutralization-decay
-uv run wq-forum-rag knowledge-lint
-uv run wq-forum-rag knowledge-graph alpha/neutralization-decay --depth 2
-uv run wq-forum-rag knowledge-export --out .cache/wiki
+uv run forum-rag evolve-context "alpha decay neutralization" --top-k 3
+uv run forum-rag knowledge-search "neutralization" --json
+uv run forum-rag knowledge-show alpha/neutralization-decay
+uv run forum-rag knowledge-lint
+uv run forum-rag knowledge-graph alpha/neutralization-decay --depth 2
+uv run forum-rag knowledge-export --out .cache/wiki
 ```
 
 ## 维护已有安装
@@ -221,9 +221,9 @@ uv run wq-forum-rag knowledge-export --out .cache/wiki
 拉取新代码后，以下步骤是幂等的：
 
 ```bash
-cd /path/to/wq-forum-rag
+cd /path/to/forum-rag
 git pull
-uv run wq-forum-rag ingest-docs Documents
+uv run forum-rag ingest-docs Documents
 ```
 
 通常**不需要**：
@@ -236,7 +236,7 @@ uv run wq-forum-rag ingest-docs Documents
 然后重启 MCP 客户端（Claude Desktop、Claude Code、Cursor 等）；MCP server 是常驻进程，启动时加载代码，不会热重载。重启后可验证：
 
 ```bash
-uv run wq-forum-rag ingest-docs Documents
+uv run forum-rag ingest-docs Documents
 # 预期：indexed_documents=74，且 doc_chunks 为非零
 ```
 

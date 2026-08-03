@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "wq-forum-rag"
 version = "0.1.0"
-description = "Offline lightweight RAG and MCP wrapper for WorldQuant forum exports"
+description = "Offline lightweight RAG and MCP wrapper for forum exports"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -20,6 +20,9 @@ local-embeddings = ["fastembed>=0.3,<1"]
 dev = ["pytest>=8,<9"]
 
 [project.scripts]
+forum-rag = "wq_forum_rag.cli:main"
+forum-rag-mcp = "wq_forum_rag.mcp_server:main"
+# Keep the original entry points working for existing local MCP configurations.
 wq-forum-rag = "wq_forum_rag.cli:main"
 wq-forum-rag-mcp = "wq_forum_rag.mcp_server:main"
 

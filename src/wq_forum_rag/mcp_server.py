@@ -40,7 +40,8 @@ except ModuleNotFoundError:  # pragma: no cover
 
 
 def _resolve_db_path(db: str | None) -> Path:
-    return Path(db or os.environ.get("WQ_FORUM_RAG_DB") or DEFAULT_DB_PATH)
+    configured_db = os.environ.get("FORUM_RAG_DB") or os.environ.get("WQ_FORUM_RAG_DB")
+    return Path(db or configured_db or DEFAULT_DB_PATH)
 
 
 def _busy_payload(exc: ForumDatabaseBusyError, **extra: Any) -> dict[str, Any]:
@@ -432,9 +433,11 @@ def ingest_docs(
 
 
 def build_mcp_server(default_db: str | Path | None = None) -> FastMCP:
-    if default_db:
-        os.environ.setdefault("WQ_FORUM_RAG_DB", str(default_db))
-    server = FastMCP("wq-forum-rag", json_response=True)
+    if default_db and not (
+        os.environ.get("FORUM_RAG_DB") or os.environ.get("WQ_FORUM_RAG_DB")
+    ):
+        os.environ["FORUM_RAG_DB"] = str(default_db)
+    server = FastMCP("forum-rag", json_response=True)
     server.tool()(search_forum)
     server.tool()(get_post)
     server.tool()(find_by_exact)
