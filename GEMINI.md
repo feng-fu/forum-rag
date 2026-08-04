@@ -1,6 +1,6 @@
 # Gemini CLI Workflow
 
-Use the `wq-forum-rag` MCP server as the source of truth for local WorldQuant forum knowledge.
+Use the `forum-rag` MCP server as the source of truth for local forum knowledge.
 
 ## Self-Evolving Knowledge Flow
 
@@ -33,4 +33,4 @@ Use the `wq-forum-rag` MCP server as the source of truth for local WorldQuant fo
 
 ## Current Boundary
 
-This project implements the core self-evolving loop from the referenced Wiki/GBrain pattern: raw forum evidence, compiled knowledge pages, typed links, lint, graph traversal, Markdown export, text/Markdown-only delta manifest, and SQLite FTS + embedding-cache retrieval. It does not automatically call an LLM API or ingest arbitrary binary files; Gemini CLI remains responsible for reading context and deciding when to call write tools.
+This project implements the core self-evolving loop from the referenced Wiki pattern: raw forum evidence, compiled knowledge pages, typed links, lint, graph traversal, Markdown export, text/Markdown-only delta manifest, and SQLite FTS + embedding-cache retrieval. It does not automatically call an LLM API or ingest arbitrary binary files; Gemini CLI remains responsible for reading context and deciding when to call write tools.

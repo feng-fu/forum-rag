@@ -1,10 +1,10 @@
 # README for AI Agents
 
-This file is written for an AI agent that uses the `wq-forum-rag` MCP server. If a human user does not want to learn the project manually, read this file first and follow it as the operating guide.
+This file is written for an AI agent that uses the `forum-rag` MCP server. If a human user does not want to learn the project manually, read this file first and follow it as the operating guide.
 
 ## What This System Is
 
-`wq-forum-rag` is a local, offline RAG and self-evolving knowledge system for WorldQuant forum exports.
+`forum-rag` is a local, offline RAG and self-evolving knowledge system for forum exports.
 
 The project does not call an LLM API by itself. You, the tool-calling agent, are responsible for reading context, judging evidence, answering the user, and deciding whether reusable knowledge should be saved. The project provides deterministic MCP tools for search, evidence lookup, knowledge-page storage, linting, graph traversal, and wiki export.
 
@@ -12,29 +12,31 @@ Use the MCP server as the source of truth for forum knowledge.
 
 ## Runtime Setup
 
-Assume the human user shares the project with `uv`. The normal setup for a **new install** is:
+Run commands from the project root. For a **new install**, clone the repository first:
 
 ```bash
+git clone https://github.com/BeastOrange/forum-rag.git
+cd forum-rag
 uv sync
-uv run wq-forum-rag --help
-uv run wq-forum-rag ingest-docs Documents   # ingest the 74 official BRAIN docs shipped in repo
+uv run forum-rag --help
+uv run forum-rag ingest-docs Documents   # ingest the 74 official Markdown docs shipped in repo
 ```
 
 The system needs a SQLite index before search works. The user may provide either:
 
-- a forum export JSON, which should be indexed with `uv run wq-forum-rag refresh`;
+- a forum export JSON, which should be indexed with `uv run forum-rag refresh`;
 - an existing `.cache/forum.sqlite3`, which can be used directly.
 
 If the user provides a JSON export, create or refresh the index with:
 
 ```bash
-uv run wq-forum-rag refresh \
-  /path/to/WQPCommunityState_YYYYMMDD_HHMMSS.json \
+uv run forum-rag refresh \
+  /path/to/forum-export_YYYYMMDD_HHMMSS.json \
   --db .cache/forum.sqlite3 \
   --rebuild
 ```
 
-If the user provides an existing SQLite database, do not reindex unless asked. Point the MCP server to it with `WQ_FORUM_RAG_DB`.
+If the user provides an existing SQLite database, do not reindex unless asked. Point the MCP server to it with `FORUM_RAG_DB`.
 
 ### Upgrading An Existing Install
 
@@ -42,13 +44,13 @@ If the user already had a working MCP setup and just ran `git pull`, perform exa
 
 ```bash
 # 1. Verify you are in the project root
-cd /absolute/path/to/wq-forum-rag
+cd /absolute/path/to/forum-rag
 
 # 2. Ingest the markdown docs shipped in repo.
 #    - New tables `documents` / `doc_chunks` are created lazily; existing
 #      forum tables are untouched.
 #    - Re-runs are skipped per content_hash, no wasted embedding.
-uv run wq-forum-rag ingest-docs Documents
+uv run forum-rag ingest-docs Documents
 
 # 3. Ask the user to restart their MCP client (Claude Desktop / Claude Code / Cursor / etc).
 #    The MCP server is a long-lived process spawned at client startup; it
@@ -79,23 +81,23 @@ Compatible MCP clients can start the server with:
 ```json
 {
   "mcpServers": {
-    "wq-forum-rag": {
+    "forum-rag": {
       "command": "uv",
       "args": [
         "--directory",
-        "/absolute/path/wq-forum-rag",
+        "/absolute/path/forum-rag",
         "run",
-        "wq-forum-rag-mcp"
+        "forum-rag-mcp"
       ],
       "env": {
-        "WQ_FORUM_RAG_DB": "/absolute/path/.cache/forum.sqlite3"
+        "FORUM_RAG_DB": "/absolute/path/.cache/forum.sqlite3"
       }
     }
   }
 }
 ```
 
-If you cannot see the MCP tools, first tell the user to check the MCP configuration, project path, and `WQ_FORUM_RAG_DB`. Do not pretend the local knowledge base is available before tools are actually callable.
+If you cannot see the MCP tools, first tell the user to check the MCP configuration, project path, and `FORUM_RAG_DB`. Do not pretend the local knowledge base is available before tools are actually callable.
 
 ## Core Rule
 
@@ -103,13 +105,13 @@ The SQLite database contains **three independent layers**. Keep them straight:
 
 | Layer | Tables | MCP search tool | Trust | Origin |
 | --- | --- | --- | --- | --- |
-| Raw forum evidence | `topics` / `chunks` | `search_forum` | Medium (user discussion) | WQ platform JSON export |
+| Raw forum evidence | `topics` / `chunks` | `search_forum` | Medium (user discussion) | Platform JSON export |
 | Compiled knowledge | `knowledge_pages` / `knowledge_sources` / `knowledge_links` | `search_knowledge` | Medium (AI-distilled, must cite sources) | Produced by you via `propose_knowledge_page` |
 | Official docs | `documents` / `doc_chunks` | `search_docs` | High (authoritative reference) | Markdown files in `Documents/` committed to repo |
 
 Routing rules:
 
-- For an **API / operator / dataset / parameter** definition, prefer `search_docs` first — it queries the BRAIN platform's official reference.
+- For an **API / operator / dataset / parameter** definition, prefer `search_docs` first — it queries the official reference.
 - For **how others actually use a feature**, look in `search_forum` — that is community discussion.
 - For **reusable conclusions** you have already validated, look in `search_knowledge` — that is what you saved earlier with citations.
 
@@ -136,7 +138,7 @@ Read `published_knowledge` first. Use `forum_evidence` for verification and miss
 Use these tools based on the user intent:
 
 - `build_evolution_context(query, top_k=3)`: default entry for research and reusable knowledge work.
-- `search_docs(query, top_k=5)`: search **official BRAIN platform docs** (operators, datasets, neutralization, universe, simulation settings, etc.). Try this first for any API / parameter / glossary question.
+- `search_docs(query, top_k=5)`: search **official documentation** (operators, datasets, neutralization, universe, simulation settings, etc.). Try this first for any API / parameter / glossary question.
 - `get_doc(slug)`: fetch the full body of a single official doc once you have the slug.
 - `search_knowledge(query, top_k=5)`: search compiled knowledge pages before broad forum search.
 - `search_forum(query, top_k=5)`: broad forum search when official docs and compiled knowledge are missing or insufficient.
