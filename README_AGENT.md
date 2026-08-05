@@ -17,9 +17,36 @@ Run commands from the project root. For a **new install**, clone the repository 
 ```bash
 git clone https://github.com/BeastOrange/forum-rag.git
 cd forum-rag
+```
+
+Choose one environment manager.
+
+### Use uv
+
+```bash
 uv sync
 uv run forum-rag --help
 uv run forum-rag ingest-docs Documents   # ingest the 74 official Markdown docs shipped in repo
+```
+
+### Use Conda
+
+This is a standard Python package and does not require `uv` at runtime. If the user has chosen Conda, create and activate a Python 3.11+ environment, then install the cloned source with that environment's `pip`:
+
+```bash
+conda create -n forum-rag python=3.11 pip -y
+conda activate forum-rag
+python -m pip install -e .
+forum-rag --help
+forum-rag ingest-docs Documents
+```
+
+After activation, replace every `uv run forum-rag <command>` below with `forum-rag <command>`, and replace `uv run forum-rag-mcp` with `forum-rag-mcp`. Do not tell a Conda user to install `uv` just to run this project.
+
+To install the optional local embedding backend in the Conda environment, run:
+
+```bash
+python -m pip install -e ".[local-embeddings]"
 ```
 
 The system needs a SQLite index before search works. The user may provide either:
@@ -57,6 +84,15 @@ uv run forum-rag ingest-docs Documents
 #    does NOT hot-reload Python code. Without restart, the new tools
 #    search_docs / get_doc / ingest_docs will be invisible to you.
 ```
+
+For an existing Conda installation, activate its environment and use the installed entry point instead:
+
+```bash
+conda activate forum-rag
+forum-rag ingest-docs Documents
+```
+
+Only rerun `python -m pip install -e .` for a Conda installation when the upgrade changed `pyproject.toml`.
 
 Do NOT attempt these on upgrade — they are not required and may waste time:
 
@@ -96,6 +132,24 @@ Compatible MCP clients can start the server with:
   }
 }
 ```
+
+For a Conda installation, do not assume the MCP client will run `conda activate`. Prefer the environment's absolute executable path:
+
+```json
+{
+  "mcpServers": {
+    "forum-rag": {
+      "command": "/absolute/path/to/miniconda3/envs/forum-rag/bin/forum-rag-mcp",
+      "args": [],
+      "env": {
+        "FORUM_RAG_DB": "/absolute/path/.cache/forum.sqlite3"
+      }
+    }
+  }
+}
+```
+
+On Windows, use `...\envs\forum-rag\Scripts\forum-rag-mcp.exe` as the command. When `conda` is on the MCP client's `PATH`, an alternative is `command: "conda"` with `args: ["run", "--no-capture-output", "-n", "forum-rag", "forum-rag-mcp"]`.
 
 If you cannot see the MCP tools, first tell the user to check the MCP configuration, project path, and `FORUM_RAG_DB`. Do not pretend the local knowledge base is available before tools are actually callable.
 

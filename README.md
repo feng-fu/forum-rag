@@ -28,6 +28,11 @@
 ```bash
 git clone https://github.com/BeastOrange/forum-rag.git
 cd forum-rag
+```
+
+#### 使用 uv
+
+```bash
 uv sync
 
 # 项目要求 Python >= 3.11；没有合适版本时先执行：
@@ -36,6 +41,21 @@ uv sync
 # 必跑：将仓库内 74 篇官方 Markdown 文档写入默认 SQLite 索引
 uv run forum-rag ingest-docs Documents
 ```
+
+#### 使用 Conda
+
+项目不依赖 `uv` 运行。若你使用 Conda，请在仓库根目录创建 Python 3.11+ 环境，并在该环境中用 `pip` 安装项目：
+
+```bash
+conda create -n forum-rag python=3.11 pip -y
+conda activate forum-rag
+python -m pip install -e .
+
+# 必跑：将仓库内 74 篇官方 Markdown 文档写入默认 SQLite 索引
+forum-rag ingest-docs Documents
+```
+
+后续示例以 `uv` 展示。Conda 环境中，将 `uv run forum-rag <command>` 替换为 `forum-rag <command>`，将 `uv run forum-rag-mcp` 替换为 `forum-rag-mcp`。
 
 ### 2. 搜索一条官方文档
 
@@ -66,6 +86,12 @@ uv run forum-rag show 12913566170391
 
 ```bash
 uv sync --extra local-embeddings
+```
+
+Conda 环境中运行：
+
+```bash
+python -m pip install -e ".[local-embeddings]"
 ```
 
 ## 数据、分发与边界
@@ -173,6 +199,24 @@ Claude Desktop 或其他兼容 MCP 客户端的配置示例：
 }
 ```
 
+若使用 Conda，图形化 MCP 客户端通常不会先执行 `conda activate`。请将 `command` 直接指向该环境中的 `forum-rag-mcp` 可执行文件：
+
+```json
+{
+  "mcpServers": {
+    "forum-rag": {
+      "command": "/absolute/path/to/miniconda3/envs/forum-rag/bin/forum-rag-mcp",
+      "args": [],
+      "env": {
+        "FORUM_RAG_DB": "/absolute/path/.cache/forum.sqlite3"
+      }
+    }
+  }
+}
+```
+
+Windows 下将可执行文件路径改为 `...\envs\forum-rag\Scripts\forum-rag-mcp.exe`。
+
 <details>
 <summary><strong>查看全部 19 个 MCP 工具</strong></summary>
 
@@ -226,12 +270,21 @@ git pull
 uv run forum-rag ingest-docs Documents
 ```
 
+Conda 环境中，先激活环境，再运行：
+
+```bash
+conda activate forum-rag
+forum-rag ingest-docs Documents
+```
+
 通常**不需要**：
 
 - `uv sync`：确认本次升级没有新增或变更依赖时不必执行。
 - `pip install -e .`：`uv run` 已基于当前源码运行。
 - 删除、迁移或重建既有 `forum.sqlite3`：文档相关表以 additive 方式创建，不影响已有论坛数据。
 - 重跑 `refresh`：仅升级官方文档能力时，论坛索引不受影响。
+
+Conda 安装如果本次升级改动了 `pyproject.toml`，请在激活环境后重新运行 `python -m pip install -e .`。
 
 然后重启 MCP 客户端（Claude Desktop、Claude Code、Cursor 等）；MCP server 是常驻进程，启动时加载代码，不会热重载。重启后可验证：
 
