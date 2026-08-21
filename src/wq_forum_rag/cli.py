@@ -104,6 +104,42 @@ def show_command(
     console.print_json(data=post)
 
 
+@app.command("exact")
+def exact_command(
+    value: str = typer.Argument(..., help="Topic id, URL, title, or exact phrase"),
+    db_path: Path = typer.Option(DEFAULT_DB_PATH, "--db", exists=True, dir_okay=False, readable=True),
+    community: str = typer.Option(None, "--community", help="Filter by community id or title"),
+    top_k: int = typer.Option(5, "--top-k", min=1, max=50),
+) -> None:
+    """Exact lookup: topic ids, URLs, titles, error strings, field names."""
+    try:
+        results = ForumIndexService(db_path).find_by_exact(value, community=community, top_k=top_k)
+    except ForumDatabaseBusyError as exc:
+        _print_busy(exc, value=value, results=[])
+        return
+    table = Table(title=f"Exact Top {len(results)}")
+    for name in ("topic_id", "community_title", "title", "rank"):
+        table.add_column(name)
+    for item in results:
+        table.add_row(item["topic_id"], item["community_title"], item["title"][:60], str(item["rank"]))
+    console.print(table)
+
+
+@app.command("related")
+def related_command(
+    topic_id: str = typer.Argument(..., help="Forum topic id"),
+    db_path: Path = typer.Option(DEFAULT_DB_PATH, "--db", exists=True, dir_okay=False, readable=True),
+    top_k: int = typer.Option(5, "--top-k", min=1, max=20),
+) -> None:
+    """Find nearby topics based on a topic's title."""
+    try:
+        results = ForumIndexService(db_path).related_posts(topic_id=topic_id, top_k=top_k)
+    except ForumDatabaseBusyError as exc:
+        _print_busy(exc, topic_id=topic_id, results=[])
+        return
+    _render_search(results)
+
+
 @app.command("search-reindex")
 def search_reindex_command(
     db_path: Path = typer.Option(DEFAULT_DB_PATH, "--db", exists=True, dir_okay=False),
