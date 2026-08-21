@@ -91,6 +91,86 @@ def register_evolution_commands(app: typer.Typer) -> None:
             raise typer.Exit(code=1)
         console.print_json(data=page)
 
+    @app.command("knowledge-propose")
+    def knowledge_propose_command(
+        slug: str = typer.Option(..., "--slug", help="Knowledge page slug like alpha/neutralization-decay"),
+        title: str = typer.Option(..., "--title"),
+        summary: str = typer.Option(..., "--summary"),
+        body: str = typer.Option(..., "--body"),
+        source_topic_ids: str = typer.Option(
+            ..., "--sources", help="Comma-separated forum topic ids supporting the claims"
+        ),
+        confidence: float = typer.Option(..., "--confidence", min=0.0, max=1.0),
+        links: str = typer.Option(
+            "", "--links", help="Optional links as slug:relation_type pairs, comma-separated"
+        ),
+        no_auto_publish: bool = typer.Option(False, "--no-auto-publish"),
+        db_path: Path = typer.Option(DEFAULT_DB_PATH, "--db", dir_okay=False),
+    ) -> None:
+        """Propose a knowledge page bound to source forum topics."""
+        topic_ids = [item.strip() for item in source_topic_ids.split(",") if item.strip()]
+        link_specs: list[dict[str, object]] = []
+        for pair in [item.strip() for item in links.split(",") if item.strip()]:
+            target, _, relation = pair.partition(":")
+            if not target or not relation:
+                _print_busy(ForumDatabaseBusyError({"reason": f"invalid link spec: {pair!r} (expected slug:relation_type)"}), page=None)
+                return
+            link_specs.append({"target_slug": target, "relation_type": relation})
+        try:
+            result = EvolutionService(db_path).propose_knowledge_page(
+                slug=slug,
+                title=title,
+                summary=summary,
+                body=body,
+                source_topic_ids=topic_ids,
+                confidence=confidence,
+                links=link_specs,
+                auto_publish=not no_auto_publish,
+            )
+            console.print_json(data=result)
+        except ForumDatabaseBusyError as exc:
+            _print_busy(exc, page=None, issues=[], auto_published=False)
+        except (ValueError, sqlite3.OperationalError) as exc:
+            console.print_json(data={"error": str(exc), "page": None})
+            raise typer.Exit(code=1)
+
+    @app.command("knowledge-publish")
+    def knowledge_publish_command(
+        slug: str = typer.Argument(..., help="Knowledge page slug"),
+        db_path: Path = typer.Option(DEFAULT_DB_PATH, "--db", exists=True, dir_okay=False),
+    ) -> None:
+        """Publish a draft knowledge page after lint blockers are resolved."""
+        try:
+            console.print_json(data=EvolutionService(db_path).publish_knowledge_page(slug))
+        except ForumDatabaseBusyError as exc:
+            _print_busy(exc, published=False, page=None, issues=[])
+
+    @app.command("knowledge-link")
+    def knowledge_link_command(
+        source_slug: str = typer.Argument(..., help="Source knowledge page slug"),
+        target_slug: str = typer.Argument(..., help="Target knowledge page slug"),
+        relation_type: str = typer.Argument(..., help="related_to | supports | refines | conflicts_with"),
+        db_path: Path = typer.Option(DEFAULT_DB_PATH, "--db", exists=True, dir_okay=False),
+        weight: float = typer.Option(1.0, "--weight"),
+        confidence: float = typer.Option(0.8, "--confidence", min=0.0, max=1.0),
+    ) -> None:
+        """Add a typed relation between two knowledge pages."""
+        try:
+            console.print_json(
+                data=EvolutionService(db_path).link_knowledge_pages(
+                    source_slug,
+                    target_slug,
+                    relation_type,
+                    weight=weight,
+                    confidence=confidence,
+                )
+            )
+        except ForumDatabaseBusyError as exc:
+            _print_busy(exc, link=None)
+        except (ValueError, sqlite3.OperationalError) as exc:
+            console.print_json(data={"error": str(exc), "link": None})
+            raise typer.Exit(code=1)
+
     @app.command("knowledge-lint")
     def knowledge_lint_command(
         db_path: Path = typer.Option(DEFAULT_DB_PATH, "--db", exists=True, dir_okay=False),
